@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Покер — Калькулятор шансов (Equity)</title>
+  <style>
+    :root {
+      --bg: #0b0d12;
+      --panel: #121620;
+      --text: #e6e8ee;
+      --muted: #a5adbe;
+      --primary: #5aa8ff;
+      --accent: #7de39a;
+      --danger: #ff6b6b;
+      --warning: #f3c969;
+      --border: #1f2533;
+      --card-bg: #0e131d;
+      --select-bg: #0f1420;
+      --chip-bg: #182033;
+      --progress: #5aa8ff;
+      --link: #7fb3ff;
+      --shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+    :root.light {
+      --bg: #f6f7fb;
+      --panel: #ffffff;
+      --text: #16181d;
+      --muted: #51607a;
+      --primary: #2c6df9;
+      --accent: #1e9e59;
+      --danger: #d44d4d;
+      --warning: #c28c10;
+      --border: #e6ebf5;
+      --card-bg: #f2f4fb;
+      --select-bg: #f7f9ff;
+      --chip-bg: #eef2fb;
+      --progress: #2c6df9;
+      --link: #1d5de8;
+      --shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, "Apple Color Emoji", "Segoe UI Emoji";
+      background: linear-gradient(180deg, var(--bg), var(--card-bg) 100%);
+      color: var(--text);
+    }
+    a { color: var(--link); text-decoration: none; }
+
+    .app {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+    .title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 18px;
+    }
+    .title .badge {
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--chip-bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      background: var(--select-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn:hover { filter: brightness(1.05); }
+    .btn.primary { background: var(--primary); color: white; border-color: transparent; }
+    .btn.success { background: var(--accent); color: white; border-color: transparent; }
+    .btn.warn { background: var(--warning); color: #1a1a1a; border-color: transparent; }
+    .btn.danger { background: var(--danger); color: white; border-color: transparent; }
+    .btn.ghost { background: transparent; border-color: var(--border); }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+    @media (min-width: 900px) {
+      .grid.two {
+        grid-template-columns: 1.5fr 1fr;
+      }
+      .grid.three {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    .section-title {
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .controls { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 700px) {
+      .controls { grid-template-columns: 1fr 1fr; }
+    }
+
+    .control {
+      display: grid;
+      gap: 8px;
+    }
+    label { color: var(--muted); font-size: 13px; }
+
+    select, input[type="number"], input[type="text"] {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--select-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      outline: none;
+      width: 100%;
+    }
+    select:focus, input:focus { box-shadow: 0 0 0 2px rgba(90,168,255,0.25); }
+
+    .cards-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .card-slot { min-width: 120px; flex: 1; }
+
+    .progress {
+      height: 12px;
+      background: var(--chip-bg);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress > .bar { height: 100%; background: var(--progress); width: 0%; transition: width 0.25s linear; }
+
+    .stats { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 700px) { .stats { grid-template-columns: repeat(3, 1fr); } }
+
+    .stat {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .stat .value { font-size: 20px; font-weight: 800; }
+    .muted { color: var(--muted); font-size: 12px; }
+
+    .recommendation {
+      border-radius: 12px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      display: grid;
+      gap: 6px;
+      font-weight: 700;
+    }
+    .rec-fold { background: rgba(255, 107, 107, 0.12); color: var(--danger); }
+    .rec-call { background: rgba(243, 201, 105, 0.16); color: var(--warning); }
+    .rec-raise { background: rgba(125, 227, 154, 0.16); color: var(--accent); }
+
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    .pill {
+      border-radius: 999px;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      background: var(--chip-bg);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .footer-note { color: var(--muted); font-size: 12px; }
+
+    .suit-s { color: #7aa2ff; }
+    .suit-h { color: #ff6b88; }
+    .suit-d { color: #f3c969; }
+    .suit-c { color: #7de39a; }
+
+    .note { color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="title">
+        <span>Покер — Калькулятор шансов</span>
+        <span class="badge">Monte Carlo • Web Worker • Offline</span>
+      </div>
+      <div class="toolbar">
+        <button id="themeToggle" class="btn ghost" title="Тёмная/Светлая тема">🌓 Тема</button>
+        <button id="shareBtn" class="btn ghost" title="Поделиться ссылкой">🔗 Поделиться</button>
+        <a class="btn ghost" href="https://en.wikipedia.org/wiki/Pot_odds" target="_blank" rel="noopener">ℹ️ Pot Odds</a>
+      </div>
+    </header>
+
+    <div class="grid two">
+      <section class="card">
+        <div class="section-title">
+          <div>Входные данные</div>
+          <div class="note" id="deckRemaining">Осталось в колоде: 52</div>
+        </div>
+
+        <div class="controls">
+          <div class="control">
+            <label>Карманные карты (Hero)</label>
+            <div class="cards-row">
+              <select class="card-slot" id="hero1"></select>
+              <select class="card-slot" id="hero2"></select>
+            </div>
+          </div>
+
+          <div class="control">
+            <label>Общие карты (Доска)</label>
+            <div class="cards-row">
+              <select class="card-slot" id="b1"></select>
+              <select class="card-slot" id="b2"></select>
+              <select class="card-slot" id="b3"></select>
+              <select class="card-slot" id="b4"></select>
+              <select class="card-slot" id="b5"></select>
+            </div>
+          </div>
+
+          <div class="control">
+            <label>Количество оппонентов</label>
+            <input type="number" id="opponents" min="1" max="9" step="1" value="2" />
+          </div>
+
+          <div class="control">
+            <label>Банк (pot) и Колл (call)</label>
+            <div class="row">
+              <input type="number" id="pot" min="0" step="0.01" placeholder="Пот" value="100"/>
+              <input type="number" id="call" min="0" step="0.01" placeholder="Колл" value="30"/>
+            </div>
+          </div>
+
+          <div class="control">
+            <label>Точность</label>
+            <select id="accuracy">
+              <option value="50000">Быстро (50 000)</option>
+              <option value="100000" selected>Обычная (100 000)</option>
+              <option value="250000">Точная (250 000)</option>
+              <option value="500000">Максимум (500 000)</option>
+            </select>
+          </div>
+
+          <div class="control" style="grid-column: 1 / -1;">
+            <label>Вставить строку и разобрать (напр.: "Ah Kh | Flop: 2s 7d Tc | 2 opp | Pot 120 | Call 40")</label>
+            <div class="row">
+              <input type="text" id="importLine" placeholder="Вставьте текст…" />
+              <button id="parseBtn" class="btn">Разобрать</button>
+            </div>
+          </div>
+
+          <div class="control" style="grid-column: 1 / -1;">
+            <div class="row">
+              <button id="startBtn" class="btn primary">▶️ Старт</button>
+              <button id="stopBtn" class="btn danger" disabled>⏹ Остановить</button>
+              <span class="pill" id="statusLabel">Готов</span>
+            </div>
+            <div class="progress" title="Прогресс расчёта">
+              <div class="bar" id="progressBar"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">Результаты</div>
+        <div class="stats">
+          <div class="stat">
+            <div class="muted">Equity (95% ДИ)</div>
+            <div class="value" id="equityValue">—</div>
+            <div class="muted" id="equityCI"></div>
+          </div>
+          <div class="stat">
+            <div class="muted">Победа / Ничья / Поражение</div>
+            <div class="value" id="winTieLoss">—</div>
+            <div class="muted" id="winTieLoss2">—</div>
+          </div>
+          <div class="stat">
+            <div class="muted">Пот‑оддсы и решение</div>
+            <div class="value" id="potOdds">—</div>
+            <div class="recommendation" id="recommendation">—</div>
+          </div>
+        </div>
+        <div style="margin-top: 12px;" class="footer-note" id="footerInfo">Прогонов: 0 • Время: 0.0 c</div>
+      </section>
+    </div>
+
+  </div>
+
+  <script>
+    // ===== Theme handling =====
+    (function initTheme() {
+      const root = document.documentElement;
+      const saved = localStorage.getItem('pc_theme');
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (saved === 'light' || saved === 'dark') {
+        if (saved === 'light') root.classList.add('light');
+        else root.classList.remove('light');
+      } else if (!prefersDark) {
+        root.classList.add('light');
+      }
+      document.getElementById('themeToggle').addEventListener('click', () => {
+        root.classList.toggle('light');
+        localStorage.setItem('pc_theme', root.classList.contains('light') ? 'light' : 'dark');
+      });
+    })();
+
+    // ===== Card utilities =====
+    const RANKS = ['2','3','4','5','6','7','8','9','T','J','Q','K','A'];
+    const SUITS = ['s','h','d','c'];
+    const SUIT_TO_SYMBOL = { s: '♠', h: '♥', d: '♦', c: '♣' };
+
+    function cardIndexFromStr(str) {
+      // Accept formats like "Ah", "A♠", case-insensitive
+      const s = str.trim().toUpperCase().replace(/\u2660|\u2665|\u2666|\u2663/g, m => ({'\u2660':'S','\u2665':'H','\u2666':'D','\u2663':'C'}[m]));
+      if (s.length < 2) return -1;
+      const r = s[0];
+      const rr = RANKS.indexOf(r);
+      const suitChar = s[s.length-1];
+      const suitMap = { 'S':0, 'H':1, 'D':2, 'C':3 };
+      const ss = suitMap[suitChar] !== undefined ? suitMap[suitChar] : ({'♠':0,'♥':1,'♦':2,'♣':3}[suitChar] ?? -1);
+      if (rr === -1 || ss === -1) return -1;
+      return rr + 13*ss;
+    }
+    function cardToLabel(idx) {
+      if (idx == null || idx < 0) return '—';
+      const r = RANKS[idx % 13];
+      const s = SUITS[Math.floor(idx/13)];
+      return r + SUIT_TO_SYMBOL[s];
+    }
+
+    // ===== Build card selects =====
+    const selectIds = ['hero1','hero2','b1','b2','b3','b4','b5'];
+    const selects = {};
+    function buildSelectOptions(select) {
+      select.innerHTML = '';
+      const none = document.createElement('option');
+      none.value = '';
+      none.textContent = '—';
+      select.appendChild(none);
+      for (let s = 0; s < 4; s++) {
+        const group = document.createElement('optgroup');
+        const suitLabel = SUIT_TO_SYMBOL[SUITS[s]] + ' ' + ({s:'♠',h:'♥',d:'♦',c:'♣'}[SUITS[s]]);
+        group.label = {0:'♠ Пики',1:'♥ Червы',2:'♦ Бубны',3:'♣ Трефы'}[s];
+        for (let r = 12; r >= 0; r--) {
+          const idx = r + 13*s;
+          const opt = document.createElement('option');
+          opt.value = String(idx);
+          opt.textContent = cardToLabel(idx);
+          group.appendChild(opt);
+        }
+        select.appendChild(group);
+      }
+    }
+
+    function initSelects() {
+      for (const id of selectIds) {
+        const el = document.getElementById(id);
+        selects[id] = el;
+        buildSelectOptions(el);
+        el.addEventListener('change', () => { onInputsChanged(); saveState(); });
+      }
+    }
+
+    function getChosenSet() {
+      const chosen = new Set();
+      for (const id of selectIds) {
+        const v = selects[id].value;
+        if (v) chosen.add(Number(v));
+      }
+      return chosen;
+    }
+
+    function refreshSelectDisables() {
+      const chosen = getChosenSet();
+      const chosenCount = chosen.size;
+      // Update deck remaining indicator
+      const deckRemain = 52 - chosenCount;
+      document.getElementById('deckRemaining').textContent = `Осталось в колоде: ${deckRemain}`;
+      for (const id of selectIds) {
+        const sel = selects[id];
+        const cur = sel.value ? Number(sel.value) : null;
+        for (const opt of sel.querySelectorAll('option')) {
+          if (opt.value === '') { opt.disabled = false; continue; }
+          const val = Number(opt.value);
+          opt.disabled = chosen.has(val) && val !== cur;
+        }
+      }
+    }
+
+    function onInputsChanged() {
+      refreshSelectDisables();
+      updateShareButton();
+    }
+
+    // ===== State save/restore =====
+    function getState() {
+      const vals = {};
+      for (const id of selectIds) vals[id] = selects[id].value || '';
+      vals.opponents = String(document.getElementById('opponents').value || '2');
+      vals.pot = String(document.getElementById('pot').value || '0');
+      vals.call = String(document.getElementById('call').value || '0');
+      vals.accuracy = String(document.getElementById('accuracy').value || '100000');
+      vals.theme = document.documentElement.classList.contains('light') ? 'light' : 'dark';
+      return vals;
+    }
+    function setState(vals) {
+      for (const id of selectIds) {
+        if (vals[id] !== undefined) selects[id].value = vals[id];
+      }
+      if (vals.opponents !== undefined) document.getElementById('opponents').value = vals.opponents;
+      if (vals.pot !== undefined) document.getElementById('pot').value = vals.pot;
+      if (vals.call !== undefined) document.getElementById('call').value = vals.call;
+      if (vals.accuracy !== undefined) document.getElementById('accuracy').value = vals.accuracy;
+      if (vals.theme === 'light') document.documentElement.classList.add('light');
+      if (vals.theme === 'dark') document.documentElement.classList.remove('light');
+      onInputsChanged();
+    }
+    function saveState() {
+      localStorage.setItem('pc_state_v1', JSON.stringify(getState()));
+    }
+    function restoreStateFromLocalStorage() {
+      const raw = localStorage.getItem('pc_state_v1');
+      if (!raw) return false;
+      try { setState(JSON.parse(raw)); return true; } catch { return false; }
+    }
+
+    function restoreStateFromURL() {
+      const p = new URLSearchParams(location.search);
+      let used = false;
+      if (p.get('h1')) { selects.hero1.value = p.get('h1'); used = true; }
+      if (p.get('h2')) { selects.hero2.value = p.get('h2'); used = true; }
+      if (p.get('b1')) { selects.b1.value = p.get('b1'); used = true; }
+      if (p.get('b2')) { selects.b2.value = p.get('b2'); used = true; }
+      if (p.get('b3')) { selects.b3.value = p.get('b3'); used = true; }
+      if (p.get('b4')) { selects.b4.value = p.get('b4'); used = true; }
+      if (p.get('b5')) { selects.b5.value = p.get('b5'); used = true; }
+      if (p.get('n')) { document.getElementById('opponents').value = p.get('n'); used = true; }
+      if (p.get('pot')) { document.getElementById('pot').value = p.get('pot'); used = true; }
+      if (p.get('call')) { document.getElementById('call').value = p.get('call'); used = true; }
+      if (p.get('acc')) { document.getElementById('accuracy').value = p.get('acc'); used = true; }
+      if (p.get('theme')) {
+        used = true;
+        if (p.get('theme') === 'light') document.documentElement.classList.add('light');
+        if (p.get('theme') === 'dark') document.documentElement.classList.remove('light');
+      }
+      onInputsChanged();
+      return used;
+    }
+
+    function updateShareButton() {
+      const s = getState();
+      const params = new URLSearchParams({
+        h1: s.hero1 || '', h2: s.hero2 || '',
+        b1: s.b1 || '', b2: s.b2 || '', b3: s.b3 || '', b4: s.b4 || '', b5: s.b5 || '',
+        n: s.opponents || '2', pot: s.pot || '0', call: s.call || '0', acc: s.accuracy || '100000', theme: s.theme || 'dark',
+      });
+      const base = (location.origin === 'null' || location.origin === 'file://') ? '' : (location.origin);
+      const url = base + location.pathname + '?' + params.toString();
+      document.getElementById('shareBtn').onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(url);
+          setStatus(`Ссылка скопирована в буфер обмена`);
+        } catch (e) {
+          setStatus(`URL: ${url}`);
+        }
+      };
+    }
+
+    // ===== Parser from free-form string =====
+    function parseLine(line) {
+      // Example: "Ah Kh | Flop: 2s 7d Tc | Turn: Qh | River: 2c | 2 opp | Pot 120 | Call 40"
+      const res = { hero: [], board: [], opp: null, pot: null, call: null };
+      const lower = line.toLowerCase();
+
+      // Opponents
+      const oppMatch = lower.match(/(\d+)\s*(opp|опп|оппонент|opponents?)/);
+      if (oppMatch) res.opp = parseInt(oppMatch[1], 10);
+
+      const potMatch = lower.match(/pot\s*([\d\.]+)/);
+      if (potMatch) res.pot = parseFloat(potMatch[1]);
+
+      const callMatch = lower.match(/call\s*([\d\.]+)/);
+      if (callMatch) res.call = parseFloat(callMatch[1]);
+
+      // Extract card groups
+      // 1) Flop/Turn/River explicit
+      const flop = lower.match(/flop\s*[:\-]?\s*([2-9tjqka][shdc])\s+([2-9tjqka][shdc])\s+([2-9tjqka][shdc])/);
+      const turn = lower.match(/turn\s*[:\-]?\s*([2-9tjqka][shdc])/);
+      const river = lower.match(/river\s*[:\-]?\s*([2-9tjqka][shdc])/);
+      if (flop) res.board.push(flop[1], flop[2], flop[3]);
+      if (turn) res.board.push(turn[1]);
+      if (river) res.board.push(river[1]);
+
+      // 2) Hero two cards left of first '|', or at start
+      const firstPipe = line.indexOf('|');
+      const heroPart = (firstPipe !== -1 ? line.slice(0, firstPipe) : line).trim();
+      const heroCards = heroPart.match(/\b([2-9tjqka][shdc])\b/gi);
+      if (heroCards && heroCards.length >= 2) res.hero.push(heroCards[0], heroCards[1]);
+
+      // Fallback: parse additional board cards not captured by labels
+      if (res.board.length < 5) {
+        const rest = line;
+        const allCards = rest.match(/\b([2-9tjqka][shdc])\b/gi) || [];
+        const already = new Set([...(res.hero||[]), ...(res.board||[])]);
+        for (const c of allCards) {
+          if (already.has(c)) continue;
+          if (res.board.length < 5) res.board.push(c);
+        }
+      }
+
+      // Normalize to indices and unique without duplicates
+      function uniqToIdx(arr) {
+        const out = [];
+        const seen = new Set();
+        for (const c of arr) {
+          const idx = cardIndexFromStr(c);
+          if (idx >= 0 && !seen.has(idx)) { out.push(idx); seen.add(idx); }
+        }
+        return out;
+      }
+      return {
+        hero: uniqToIdx(res.hero).slice(0,2),
+        board: uniqToIdx(res.board).slice(0,5),
+        opp: res.opp,
+        pot: res.pot,
+        call: res.call,
+      };
+    }
+
+    // ===== Worker code (as Blob) =====
+    const workerCode = () => {
+      const RANKS = ['2','3','4','5','6','7','8','9','T','J','Q','K','A'];
+      function rankOf(c) { return c % 13; }
+      function suitOf(c) { return (c / 13) | 0; }
+
+      function evaluate7(cards) {
+        // cards: array of 7 integers [0..51]
+        const rankCounts = new Int8Array(13);
+        const suitCounts = new Int8Array(4);
+        const suitMask = new Uint16Array(4); // 13-bit masks per suit
+        let rankMask = 0;
+        for (let i = 0; i < 7; i++) {
+          const c = cards[i];
+          const r = c % 13;
+          const s = (c / 13) | 0;
+          rankCounts[r]++;
+          suitCounts[s]++;
+          suitMask[s] |= (1 << r);
+          rankMask |= (1 << r);
+        }
+
+        function straightHigh(mask) {
+          // Explicitly handle wheel A-2-3-4-5 (bits A,2,3,4,5 -> 12,0,1,2,3)
+          const wheelMask = (1<<12) | (1<<0) | (1<<1) | (1<<2) | (1<<3);
+          if ((mask & wheelMask) === wheelMask) return 3; // high card 5 (rank index 3)
+          // Scan from Ace-high (A K Q J T) down to Six-high (6 5 4 3 2)
+          for (let high = 12; high >= 4; high--) {
+            const need = (1<<high) | (1<<(high-1)) | (1<<(high-2)) | (1<<(high-3)) | (1<<(high-4));
+            if ((mask & need) === need) return high;
+          }
+          return -1;
+        }
+
+        // Check flush and straight flush
+        let flushSuit = -1;
+        for (let s = 0; s < 4; s++) if (suitCounts[s] >= 5) { flushSuit = s; break; }
+        if (flushSuit !== -1) {
+          const fh = straightHigh(suitMask[flushSuit]);
+          if (fh !== -1) {
+            // Straight flush
+            return [8, fh, 0, 0, 0, 0];
+          }
+        }
+
+        // Quads / trips / pairs
+        const fours = [];
+        const trips = [];
+        const pairs = [];
+        const singles = [];
+        for (let r = 12; r >= 0; r--) {
+          const c = rankCounts[r];
+          if (c === 4) fours.push(r);
+          else if (c === 3) trips.push(r);
+          else if (c === 2) pairs.push(r);
+          else if (c === 1) singles.push(r);
+        }
+        if (fours.length) {
+          const quad = fours[0];
+          // best kicker among remaining ranks
+          const kicker = (singles.length ? singles[0] : (pairs.length ? pairs[0] : (trips.length ? trips[0] : 0)));
+          return [7, quad, kicker, 0, 0, 0];
+        }
+        if (trips.length && (pairs.length || trips.length >= 2)) {
+          const trip = trips[0];
+          const pair = pairs.length ? pairs[0] : trips[1];
+          return [6, trip, pair, 0, 0, 0];
+        }
+
+        // Straight
+        const sh = straightHigh(rankMask);
+        if (sh !== -1) return [4, sh, 0, 0, 0, 0];
+
+        // Flush
+        if (flushSuit !== -1) {
+          // take top 5 from flush suit
+          const mask = suitMask[flushSuit];
+          const ranks = [];
+          for (let r = 12; r >= 0; r--) if ((mask >> r) & 1) ranks.push(r);
+          return [5, ranks[0], ranks[1], ranks[2], ranks[3], ranks[4]];
+        }
+
+        if (trips.length) {
+          const trip = trips[0];
+          // two best kickers
+          const kickers = [];
+          // singles then pairs (as single ranks)
+          for (const r of singles) kickers.push(r);
+          for (const r of pairs) kickers.push(r);
+          return [3, trip, kickers[0] || 0, kickers[1] || 0, 0, 0];
+        }
+        if (pairs.length >= 2) {
+          const p1 = pairs[0], p2 = pairs[1];
+          const kicker = singles.length ? singles[0] : (pairs.length > 2 ? pairs[2] : 0);
+          return [2, p1, p2, kicker, 0, 0];
+        }
+        if (pairs.length === 1) {
+          const p = pairs[0];
+          const k1 = singles[0] || 0;
+          const k2 = singles[1] || 0;
+          const k3 = singles[2] || 0;
+          return [1, p, k1, k2, k3, 0];
+        }
+        // High card: take top 5 singles
+        const h0 = singles[0] || 0, h1 = singles[1] || 0, h2 = singles[2] || 0, h3 = singles[3] || 0, h4 = singles[4] || 0;
+        return [0, h0, h1, h2, h3, h4];
+      }
+
+      function compareRanks(a, b) {
+        for (let i = 0; i < 6; i++) {
+          const d = a[i] - b[i];
+          if (d !== 0) return d;
+        }
+        return 0;
+      }
+
+      function buildDeck(exclude) {
+        const excluded = new Uint8Array(52);
+        for (let i = 0; i < exclude.length; i++) excluded[exclude[i]] = 1;
+        const deck = new Int16Array(52 - exclude.length);
+        let p = 0;
+        for (let c = 0; c < 52; c++) if (!excluded[c]) deck[p++] = c;
+        return deck;
+      }
+
+      function shuffleInPlace(arr, n) {
+        // Fisher-Yates partial shuffle for first n elements
+        for (let i = 0; i < n; i++) {
+          const j = i + ((Math.random() * (arr.length - i)) | 0);
+          const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+        }
+      }
+
+      let STOP = false;
+      onmessage = async (ev) => {
+        const msg = ev.data || {};
+        if (msg.type === 'stop') { STOP = true; return; }
+        if (msg.type !== 'start') return;
+        STOP = false;
+        const { hero, board, numOpponents, iterations, updateInterval } = msg;
+        const known = hero.concat(board);
+        const deck = buildDeck(known);
+        const needBoard = 5 - board.length;
+        const needOppCards = numOpponents * 2;
+        const needTotal = needBoard + needOppCards;
+        if (needTotal > deck.length) {
+          postMessage({ type: 'error', error: 'Недостаточно карт в колоде' });
+          return;
+        }
+
+        let wins = 0, ties = 0, losses = 0;
+        let equitySum = 0; // counts win=1, tie=1/m
+        let done = 0;
+        const start = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+        const hero7 = new Int16Array(7);
+        hero7[0] = hero[0]; hero7[1] = hero[1];
+        // Pre-allocate arrays
+        const opp7 = new Int16Array(7);
+        const fullBoard = new Int16Array(5);
+        const temp = new Int16Array(deck.length);
+
+        for (let iter = 0; iter < iterations; iter++) {
+          if (STOP) break;
+          // copy deck once per iter and partial shuffle
+          temp.set(deck);
+          shuffleInPlace(temp, needTotal);
+
+          // Build board
+          for (let i = 0; i < board.length; i++) fullBoard[i] = board[i];
+          for (let i = 0; i < needBoard; i++) fullBoard[board.length + i] = temp[i];
+
+          // Evaluate hero
+          hero7[2] = fullBoard[0]; hero7[3] = fullBoard[1]; hero7[4] = fullBoard[2]; hero7[5] = fullBoard[3]; hero7[6] = fullBoard[4];
+          const heroRank = evaluate7(hero7);
+
+          // Build opponents and compare
+          let bestCmp = 1; // 1 means hero is best so far; -1 means someone beats; 0 tie available
+          let numBest = 1; // number of players tied for best including hero if tie
+          let idx = needBoard;
+
+          for (let opp = 0; opp < numOpponents; opp++) {
+            opp7[0] = temp[idx++];
+            opp7[1] = temp[idx++];
+            opp7[2] = fullBoard[0]; opp7[3] = fullBoard[1]; opp7[4] = fullBoard[2]; opp7[5] = fullBoard[3]; opp7[6] = fullBoard[4];
+            const r = evaluate7(opp7);
+            const cmp = compareRanks(r, heroRank);
+            if (cmp > 0) { // opponent better
+              bestCmp = -1;
+              numBest = 1; // someone strictly better => hero not in tie
+            } else if (cmp === 0) {
+              if (bestCmp === 1) { bestCmp = 0; numBest = 2; }
+              else if (bestCmp === 0) { numBest++; }
+            }
+          }
+
+          if (bestCmp === 1) { wins++; equitySum += 1; }
+          else if (bestCmp === 0) { ties++; equitySum += 1 / numBest; }
+          else { losses++; }
+
+          done++;
+          if (updateInterval && (done % updateInterval === 0)) {
+            const elapsed = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - start;
+            postMessage({ type: 'progress', done, iterations, wins, ties, losses, equitySum, elapsedMs: elapsed });
+          }
+        }
+        const elapsed = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - start;
+        postMessage({ type: 'done', done, iterations, wins, ties, losses, equitySum, elapsedMs: elapsed, stopped: STOP });
+      };
+    };
+
+    function createWorker() {
+      const code = '(' + workerCode.toString() + ')()';
+      const blob = new Blob([code], { type: 'application/javascript' });
+      const url = URL.createObjectURL(blob);
+      return new Worker(url);
+    }
+
+    // ===== Simulation control =====
+    let worker = null;
+    let running = false;
+    let lastStats = { done: 0, iterations: 0, wins: 0, ties: 0, losses: 0, equitySum: 0, elapsedMs: 0 };
+
+    function setStatus(text) { document.getElementById('statusLabel').textContent = text; }
+    function setProgress(frac) { document.getElementById('progressBar').style.width = Math.max(0, Math.min(100, frac*100)).toFixed(1) + '%'; }
+
+    function getSelectedCards() {
+      const h1 = selects.hero1.value ? Number(selects.hero1.value) : null;
+      const h2 = selects.hero2.value ? Number(selects.hero2.value) : null;
+      const board = [];
+      for (const id of ['b1','b2','b3','b4','b5']) {
+        const v = selects[id].value; if (v) board.push(Number(v));
+      }
+      return { h1, h2, board };
+    }
+
+    function startSimulation() {
+      const { h1, h2, board } = getSelectedCards();
+      const opponents = Math.max(1, Math.min(9, parseInt(document.getElementById('opponents').value || '1', 10)));
+      const iterations = Math.max(50000, parseInt(document.getElementById('accuracy').value || '100000', 10));
+
+      if (h1 == null || h2 == null || h1 === h2) { setStatus('Выберите 2 разные карманные карты'); return; }
+
+      // Validate duplicates
+      const set = new Set([h1, h2, ...board]);
+      if (set.size !== (2 + board.length)) { setStatus('Обнаружены дубликаты карт'); return; }
+
+      // Reset UI
+      running = true;
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+      setProgress(0);
+      setStatus('Расчёт…');
+      updateEquityUI({ done: 0, iterations, wins: 0, ties: 0, losses: 0, equitySum: 0, elapsedMs: 0 });
+
+      if (worker) { worker.terminate(); worker = null; }
+      worker = createWorker();
+
+      const startedAt = performance.now();
+      const updateInterval = 1000; // post from worker every N iterations
+      worker.onmessage = (ev) => {
+        const msg = ev.data || {};
+        if (msg.type === 'error') {
+          setStatus(msg.error || 'Ошибка');
+          stopSimulation(true);
+          return;
+        }
+        if (msg.type === 'progress' || msg.type === 'done') {
+          const { done, iterations, wins, ties, losses, equitySum, elapsedMs } = msg;
+          updateEquityUI({ done, iterations, wins, ties, losses, equitySum, elapsedMs });
+          setProgress(Math.min(1, done / iterations));
+          if (msg.type === 'done') {
+            running = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            setStatus(msg.stopped ? 'Остановлено' : 'Готово');
+            worker.terminate();
+            worker = null;
+          }
+        }
+      };
+
+      worker.postMessage({
+        type: 'start',
+        hero: [h1, h2],
+        board,
+        numOpponents: opponents,
+        iterations,
+        updateInterval,
+      });
+    }
+
+    function stopSimulation(silent=false) {
+      if (!worker) return;
+      worker.postMessage({ type: 'stop' });
+      running = false;
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+      if (!silent) setStatus('Остановка…');
+    }
+
+    function updateEquityUI({ done, iterations, wins, ties, losses, equitySum, elapsedMs }) {
+      lastStats = { done, iterations, wins, ties, losses, equitySum, elapsedMs };
+      const equity = done > 0 ? (equitySum / done) : 0;
+      const se = done > 0 ? Math.sqrt(Math.max(1e-12, equity * (1 - equity)) / done) : 0;
+      const ci = 1.96 * se;
+      const toPct = (x) => (x * 100).toFixed(2) + '%';
+
+      document.getElementById('equityValue').textContent = done ? `${toPct(equity)} ± ${toPct(ci)}` : '—';
+      document.getElementById('equityCI').textContent = done ? `95% ДИ: [${toPct(Math.max(0, equity - ci))}, ${toPct(Math.min(1, equity + ci))}]` : '';
+
+      const wPct = done ? wins / done : 0;
+      const tPct = done ? ties / done : 0;
+      const lPct = done ? losses / done : 0;
+      document.getElementById('winTieLoss').textContent = done ? `${toPct(wPct)} / ${toPct(tPct)} / ${toPct(lPct)}` : '—';
+      document.getElementById('winTieLoss2').textContent = done ? `Побед: ${wins} • Ничьих: ${ties} • Поражений: ${losses}` : '—';
+
+      const elapsedSec = (elapsedMs || 0) / 1000;
+      document.getElementById('footerInfo').textContent = `Прогонов: ${done}/${iterations} • Время: ${elapsedSec.toFixed(1)} c`;
+
+      // Recommendation based on pot odds
+      const pot = parseFloat(document.getElementById('pot').value || '0');
+      const call = parseFloat(document.getElementById('call').value || '0');
+      const breakEven = (call > 0) ? (call / (pot + call)) : 0;
+      document.getElementById('potOdds').textContent = `Нужно: ${toPct(breakEven)} | Есть: ${toPct(equity)}`;
+
+      const recEl = document.getElementById('recommendation');
+      recEl.className = 'recommendation';
+      if (done === 0 || call === 0) {
+        recEl.textContent = call === 0 ? 'Raise (без колла)' : '—';
+        if (call === 0) recEl.classList.add('rec-raise');
+        return;
+      }
+      const edge = equity - breakEven;
+      const margin = Math.max(0.03, 1.96 * se); // dynamic margin >= 3%
+      if (edge > margin) {
+        recEl.textContent = `Raise (запас ${toPct(edge)})`;
+        recEl.classList.add('rec-raise');
+      } else if (edge > -margin) {
+        recEl.textContent = `Call (граница ±${toPct(margin)})`;
+        recEl.classList.add('rec-call');
+      } else {
+        recEl.textContent = `Fold (не хватает ${toPct(-edge)})`;
+        recEl.classList.add('rec-fold');
+      }
+    }
+
+    // ===== Wire up UI =====
+    function initUI() {
+      initSelects();
+      document.getElementById('opponents').addEventListener('change', () => { saveState(); });
+      document.getElementById('pot').addEventListener('change', () => { saveState(); updateEquityUI(lastStats); });
+      document.getElementById('call').addEventListener('change', () => { saveState(); updateEquityUI(lastStats); });
+      document.getElementById('accuracy').addEventListener('change', () => { saveState(); });
+      document.getElementById('startBtn').addEventListener('click', startSimulation);
+      document.getElementById('stopBtn').addEventListener('click', () => stopSimulation());
+
+      document.getElementById('parseBtn').addEventListener('click', () => {
+        const line = document.getElementById('importLine').value || '';
+        const parsed = parseLine(line);
+        const used = new Set();
+        if (parsed.hero && parsed.hero.length >= 2) {
+          const [a,b] = parsed.hero;
+          if (a !== b) { selects.hero1.value = String(a); selects.hero2.value = String(b); used.add(a); used.add(b); }
+        }
+        if (parsed.board && parsed.board.length) {
+          const ids = ['b1','b2','b3','b4','b5'];
+          for (let i = 0; i < Math.min(5, parsed.board.length); i++) {
+            const c = parsed.board[i]; if (!used.has(c)) { selects[ids[i]].value = String(c); used.add(c); }
+          }
+        }
+        if (typeof parsed.opp === 'number' && parsed.opp >= 1 && parsed.opp <= 9) document.getElementById('opponents').value = String(parsed.opp);
+        if (typeof parsed.pot === 'number') document.getElementById('pot').value = String(parsed.pot);
+        if (typeof parsed.call === 'number') document.getElementById('call').value = String(parsed.call);
+        onInputsChanged();
+        saveState();
+      });
+
+      // Restore state from URL or localStorage
+      const restored = restoreStateFromURL();
+      if (!restored) restoreStateFromLocalStorage();
+      onInputsChanged();
+      updateShareButton();
+    }
+
+    document.addEventListener('DOMContentLoaded', initUI);
+  </script>
+</body>
+</html>
